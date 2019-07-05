@@ -34,6 +34,20 @@
         - var_s3_tags is not failed
         - var_s3_tags.tags is defined and var_s3_tags.tags == None
 
+  - name: Set single tag
+    s3_tag:
+      bucket: "{{ s3_bucket_name }}"
+      tags:
+        single_tag: "tag_value"
+      purge_tags: no
+      state: present
+    register: var_s3_tags
+  - name: Check result
+    assert:
+      that:
+        - var_s3_tags is not failed
+        - var_s3_tags.tags.single_tag == 'tag_value'
+
   - name: Set S3 tags from scratch
     s3_tag:
       bucket: "{{ s3_bucket_name }}"

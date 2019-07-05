@@ -161,7 +161,10 @@ def main():
             wanted_tags = tags.copy()
         else:
             # append/update previously applied tags
-            wanted_tags = current_tags.copy()
+            if current_tags:
+                wanted_tags = current_tags.copy()
+            else:
+                wanted_tags = dict()
             wanted_tags.update(tags)
 
     if current_tags != wanted_tags:
