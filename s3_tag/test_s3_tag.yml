@@ -1,11 +1,11 @@
 ---
-# Run with: ansible-playbook -i @localhost test_s3_tag.yml
+# Run with: ansible-playbook -i @localhost -e bucket_name=my-test-bucket test_s3_tag.yml
 - name: "Test 's3_tag' module"
   hosts: localhost
   connection: local
   gather_facts: no
   vars:
-    s3_bucket_name: test-bucket-1234567
+    s3_bucket_name: "{{ bucket_name | default('test-bucket-1234567') }}"
   tasks:
   - debug:
       msg: "Bucket {{ s3_bucket_name }} must exist prior this test!"
@@ -15,8 +15,8 @@
       bucket: "{{ s3_bucket_name }}"
       state: list
     register: var_s3_tags
-  - debug: var=var_s3_tags
-  - assert:
+  - name: Check result
+    assert:
       that:
         - var_s3_tags is not failed
         - var_s3_tags is not changed
@@ -26,10 +26,13 @@
     s3_tag:
       bucket: "{{ s3_bucket_name }}"
       tags: {}
-      purge_tags: yes
       state: present
     register: var_s3_tags
-  - debug: var=var_s3_tags
+  - name: Check result
+    assert:
+      that:
+        - var_s3_tags is not failed
+        - var_s3_tags.tags is defined and var_s3_tags.tags == None
 
   - name: Set S3 tags from scratch
     s3_tag:
@@ -38,9 +41,9 @@
         test_key1: "test_value1"
         test_key2: "test_value2"
         test_key3: "test_value3"
-      purge_tags: yes
     register: var_s3_tags
-  - assert:
+  - name: Check result
+    assert:
       that:
         - var_s3_tags is not failed
         - var_s3_tags is changed
@@ -54,11 +57,30 @@
       bucket: "{{ s3_bucket_name }}"
       tags:
         test_key1: "the_new_test_value1"
+      purge_tags: no
     register: var_s3_tags
-  - assert:
+  - name: Check result
+    assert:
       that:
         - var_s3_tags is not failed
         - var_s3_tags is changed
+        - var_s3_tags.tags.test_key1 == 'the_new_test_value1'
+        - var_s3_tags.tags.test_key2 == 'test_value2'
+        - var_s3_tags.tags.test_key3 == 'test_value3'
+        - var_s3_tags.tags | count == 3
+
+  - name: Overwrite single S3 tag again
+    s3_tag:
+      bucket: "{{ s3_bucket_name }}"
+      tags:
+        test_key1: "the_new_test_value1"
+      purge_tags: no
+    register: var_s3_tags
+  - name: Check result
+    assert:
+      that:
+        - var_s3_tags is not failed
+        - var_s3_tags is not changed
         - var_s3_tags.tags.test_key1 == 'the_new_test_value1'
         - var_s3_tags.tags.test_key2 == 'test_value2'
         - var_s3_tags.tags.test_key3 == 'test_value3'
@@ -71,8 +93,10 @@
       tags:
         test_key1: "whatever-REALLY!"
       state: absent
+      purge_tags: no
     register: var_s3_tags
-  - assert:
+  - name: Check result
+    assert:
       that:
         - var_s3_tags is not failed
         - var_s3_tags is changed
@@ -86,8 +110,10 @@
       tags:
         test_key1: "whatever-REALLY!"
       state: absent
+      purge_tags: no
     register: var_s3_tags
-  - assert:
+  - name: Check result
+    assert:
       that:
         - var_s3_tags is not failed
         - var_s3_tags is not changed
@@ -95,27 +121,3 @@
         - var_s3_tags.tags.test_key3 == 'test_value3'
         - var_s3_tags.tags | count == 2
 
-
-  - name: Try to list S3 tags with 'purge_tags'
-    s3_tag:
-      bucket: "{{ s3_bucket_name }}"
-      purge_tags: yes
-      state: list
-    register: var_s3_tags
-    ignore_errors: yes
-  - assert:
-      that:
-        - var_s3_tags is failed
-
-  - name: Try to delete S3 tags with 'purge_tags'
-    s3_tag:
-      bucket: "{{ s3_bucket_name }}"
-      purge_tags: yes
-      tags:
-        test_key1: "whatever-REALLY!"
-      state: absent
-    register: var_s3_tags
-    ignore_errors: yes
-  - assert:
-      that:
-        - var_s3_tags is failed

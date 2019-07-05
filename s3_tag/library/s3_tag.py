@@ -40,7 +40,7 @@ options:
     description:
       - Whether to ignore currently applied tags(set tags from scratch).
     type: bool
-    default: no
+    default: yes
     version_added: '2.7'
 
 author:
@@ -124,7 +124,7 @@ def main():
     argument_spec = dict(
         bucket=dict(required=True),
         tags=dict(type='dict'),
-        purge_tags=dict(type='bool', default=False),
+        purge_tags=dict(type='bool', default=True),
         state=dict(default='present', choices=['present', 'absent', 'list']),
     )
     required_if = [('state', 'present', ['tags']), ('state', 'absent',
@@ -146,12 +146,6 @@ def main():
 
     current_tags = get_tags(s3, module, bucket)
 
-    # sanity check
-    if purge_tags and state in ['list', 'absent']:
-        module.fail_json(
-            msg="It doesn't make sense to call for '%s' tags with 'purge_tags'"
-            % state)
-
     if state == 'list':
         module.exit_json(changed=False, tags=current_tags)
 
@@ -163,8 +157,10 @@ def main():
 
     elif state == 'present':
         if purge_tags:
+            # forget about previously applied tags
             wanted_tags = tags.copy()
         else:
+            # append/update previously applied tags
             wanted_tags = current_tags.copy()
             wanted_tags.update(tags)
 
